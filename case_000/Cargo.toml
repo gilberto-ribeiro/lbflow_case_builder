@@ -1,0 +1,7 @@
+[package]
+name = "case_000"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+lbflow = { version = "0.1.0", git = "https://github.com/gilberto-ribeiro/lbflow.git" }
