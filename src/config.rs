@@ -60,7 +60,7 @@ impl BoundaryConditionGui {
                     Dimensionality::D3 => format!("vec![{}_f64, {}_f64, {}_f64]", ux, uy, uz),
                 };
                 format!(
-                    "m::bc::BounceBack {{ density: {}, velocity: {} }}",
+                    "m::bc::BounceBack {{ density: {}_f64, velocity: {} }}",
                     rho, velocity_vec
                 )
             }
