@@ -4,21 +4,23 @@ use std::path::PathBuf;
 use crate::config::*;
 
 pub struct GuiApp {
-    m_cfg: MomentumGuiConfig,
+    m_cfg: momentum::GuiConfig,
+    n_passive_scalars: usize,
+    ps_cfg_vec: Vec<passive_scalar::GuiConfig>,
     c_cfg: CargoGuiConfig,
     parent_dir: String,
     status: String,
-    initial_size_set: bool,
 }
 
 impl Default for GuiApp {
     fn default() -> Self {
         Self {
-            m_cfg: MomentumGuiConfig::default(),
+            m_cfg: momentum::GuiConfig::default(),
+            n_passive_scalars: 0,
+            ps_cfg_vec: vec![],
             c_cfg: CargoGuiConfig::default(),
             parent_dir: String::from("./cases"),
             status: String::new(),
-            initial_size_set: false,
         }
     }
 }
@@ -95,67 +97,6 @@ impl GuiApp {
         });
     }
 
-    fn ui_collision_operator(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            ui.label("Collision operator:");
-            let current_tau = match &self.m_cfg.collision_operator {
-                CollisionOperatorGui::BGK { tau } => *tau,
-                _ => 0.5,
-            };
-            let (current_omega_plus, current_omega_minus) = match &self.m_cfg.collision_operator {
-                CollisionOperatorGui::TRT {
-                    omega_plus,
-                    omega_minus,
-                } => (*omega_plus, *omega_minus),
-                _ => (0.5, 0.5),
-            };
-            ui.selectable_value(
-                &mut self.m_cfg.collision_operator,
-                CollisionOperatorGui::BGK { tau: current_tau },
-                "BGK",
-            );
-            ui.selectable_value(
-                &mut self.m_cfg.collision_operator,
-                CollisionOperatorGui::TRT {
-                    omega_plus: current_omega_plus,
-                    omega_minus: current_omega_minus,
-                },
-                "TRT",
-            );
-            ui.selectable_value(
-                &mut self.m_cfg.collision_operator,
-                CollisionOperatorGui::MRT,
-                "MRT",
-            );
-        });
-        ui.horizontal(|ui| match &mut self.m_cfg.collision_operator {
-            CollisionOperatorGui::BGK { tau } => {
-                ui.label("Tau:");
-                ui.add(egui::DragValue::new(tau).speed(0.01).range(0.0..=10.0));
-            }
-            CollisionOperatorGui::TRT {
-                omega_plus,
-                omega_minus,
-            } => {
-                ui.label("Omega +:");
-                ui.add(
-                    egui::DragValue::new(omega_plus)
-                        .speed(0.01)
-                        .range(0.0..=2.0),
-                );
-                ui.label("Omega -:");
-                ui.add(
-                    egui::DragValue::new(omega_minus)
-                        .speed(0.01)
-                        .range(0.0..=2.0),
-                );
-            }
-            CollisionOperatorGui::MRT => {
-                ui.label("Set the MRT parameters in the generated code.");
-            }
-        });
-    }
-
     fn ui_delta_x(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             ui.label("Delta x:");
@@ -188,40 +129,40 @@ impl GuiApp {
         ui.horizontal(|ui| {
             ui.label("Initial density:");
             let cur_rho = match &self.m_cfg.initial_density {
-                InitialDensityGui::Uniform { rho } => *rho,
+                momentum::InitialDensityGui::Uniform { rho } => *rho,
                 _ => 1.0,
             };
             let cur_time_step = match &self.m_cfg.initial_density {
-                InitialDensityGui::FromTimeStep { time_step } => *time_step,
+                momentum::InitialDensityGui::FromTimeStep { time_step } => *time_step,
                 _ => 0usize,
             };
             let cur_file_path = match &self.m_cfg.initial_density {
-                InitialDensityGui::FromFile { file_path } => file_path.clone(),
+                momentum::InitialDensityGui::FromFile { file_path } => file_path.clone(),
                 _ => "./pre_processing/density.csv".to_string(),
             };
 
             egui::ComboBox::from_id_salt("initial_density_combo_box")
                 .selected_text(match &self.m_cfg.initial_density {
-                    InitialDensityGui::Uniform { rho: _ } => "Uniform",
-                    InitialDensityGui::FromTimeStep { time_step: _ } => "From time step",
-                    InitialDensityGui::FromFile { file_path: _ } => "From file",
+                    momentum::InitialDensityGui::Uniform { rho: _ } => "Uniform",
+                    momentum::InitialDensityGui::FromTimeStep { time_step: _ } => "From time step",
+                    momentum::InitialDensityGui::FromFile { file_path: _ } => "From file",
                 })
                 .show_ui(ui, |ui| {
                     ui.selectable_value(
                         &mut self.m_cfg.initial_density,
-                        InitialDensityGui::Uniform { rho: cur_rho },
+                        momentum::InitialDensityGui::Uniform { rho: cur_rho },
                         "Uniform",
                     );
                     ui.selectable_value(
                         &mut self.m_cfg.initial_density,
-                        InitialDensityGui::FromTimeStep {
+                        momentum::InitialDensityGui::FromTimeStep {
                             time_step: cur_time_step,
                         },
                         "From time step",
                     );
                     ui.selectable_value(
                         &mut self.m_cfg.initial_density,
-                        InitialDensityGui::FromFile {
+                        momentum::InitialDensityGui::FromFile {
                             file_path: cur_file_path.clone(),
                         },
                         "From file",
@@ -229,11 +170,11 @@ impl GuiApp {
                 });
         });
         ui.horizontal(|ui| match &mut self.m_cfg.initial_density {
-            InitialDensityGui::Uniform { rho } => {
+            momentum::InitialDensityGui::Uniform { rho } => {
                 ui.label("rho:");
                 ui.add(egui::DragValue::new(rho).speed(0.01));
             }
-            InitialDensityGui::FromTimeStep { time_step } => {
+            momentum::InitialDensityGui::FromTimeStep { time_step } => {
                 ui.label("Time step:");
                 ui.add(
                     egui::DragValue::new(time_step)
@@ -241,7 +182,7 @@ impl GuiApp {
                         .speed(100),
                 );
             }
-            InitialDensityGui::FromFile { file_path } => {
+            momentum::InitialDensityGui::FromFile { file_path } => {
                 ui.label("File path:");
                 ui.text_edit_singleline(file_path);
             }
@@ -252,31 +193,31 @@ impl GuiApp {
         ui.horizontal(|ui| {
             ui.label("Initial velocity:");
             let (cur_ux, cur_uy, cur_uz) = match &self.m_cfg.initial_velocity {
-                InitialVelocityGui::Uniform { ux, uy, uz } => (*ux, *uy, *uz),
+                momentum::InitialVelocityGui::Uniform { ux, uy, uz } => (*ux, *uy, *uz),
                 _ => (0.0, 0.0, 0.0),
             };
             let cur_vel_time_step = match &self.m_cfg.initial_velocity {
-                InitialVelocityGui::FromTimeStep { time_step } => *time_step,
+                momentum::InitialVelocityGui::FromTimeStep { time_step } => *time_step,
                 _ => 0usize,
             };
             let cur_vel_file_path = match &self.m_cfg.initial_velocity {
-                InitialVelocityGui::FromFile { file_path } => file_path.clone(),
+                momentum::InitialVelocityGui::FromFile { file_path } => file_path.clone(),
                 _ => "./pre_processing/velocity.csv".to_string(),
             };
             egui::ComboBox::from_id_salt("initial_velocity_combo_box")
                 .selected_text(match &self.m_cfg.initial_velocity {
-                    InitialVelocityGui::Uniform {
+                    momentum::InitialVelocityGui::Uniform {
                         ux: _,
                         uy: _,
                         uz: _,
                     } => "Uniform",
-                    InitialVelocityGui::FromTimeStep { time_step: _ } => "From time step",
-                    InitialVelocityGui::FromFile { file_path: _ } => "From file",
+                    momentum::InitialVelocityGui::FromTimeStep { time_step: _ } => "From time step",
+                    momentum::InitialVelocityGui::FromFile { file_path: _ } => "From file",
                 })
                 .show_ui(ui, |ui| {
                     ui.selectable_value(
                         &mut self.m_cfg.initial_velocity,
-                        InitialVelocityGui::Uniform {
+                        momentum::InitialVelocityGui::Uniform {
                             ux: cur_ux,
                             uy: cur_uy,
                             uz: cur_uz,
@@ -285,14 +226,14 @@ impl GuiApp {
                     );
                     ui.selectable_value(
                         &mut self.m_cfg.initial_velocity,
-                        InitialVelocityGui::FromTimeStep {
+                        momentum::InitialVelocityGui::FromTimeStep {
                             time_step: cur_vel_time_step,
                         },
                         "From time step",
                     );
                     ui.selectable_value(
                         &mut self.m_cfg.initial_velocity,
-                        InitialVelocityGui::FromFile {
+                        momentum::InitialVelocityGui::FromFile {
                             file_path: cur_vel_file_path.clone(),
                         },
                         "From file",
@@ -300,7 +241,7 @@ impl GuiApp {
                 });
         });
         ui.horizontal(|ui| match &mut self.m_cfg.initial_velocity {
-            InitialVelocityGui::Uniform { ux, uy, uz } => {
+            momentum::InitialVelocityGui::Uniform { ux, uy, uz } => {
                 ui.label("ux:");
                 ui.add(egui::DragValue::new(ux).speed(0.01));
                 ui.label("uy:");
@@ -312,7 +253,7 @@ impl GuiApp {
                     *uz = 0.0;
                 }
             }
-            InitialVelocityGui::FromTimeStep { time_step } => {
+            momentum::InitialVelocityGui::FromTimeStep { time_step } => {
                 ui.label("Time step:");
                 ui.add(
                     egui::DragValue::new(time_step)
@@ -320,14 +261,14 @@ impl GuiApp {
                         .speed(100),
                 );
             }
-            InitialVelocityGui::FromFile { file_path } => {
+            momentum::InitialVelocityGui::FromFile { file_path } => {
                 ui.label("File path:");
                 ui.text_edit_singleline(file_path);
             }
         });
     }
 
-    fn ui_boundary_conditions(&mut self, ui: &mut egui::Ui) {
+    fn ui_m_boundary_conditions(&mut self, ui: &mut egui::Ui) {
         ui.heading("Boundary conditions");
         let (possible_faces, number_of_faces) = match self.m_cfg.dim {
             Dimensionality::D2 => (
@@ -353,9 +294,9 @@ impl GuiApp {
         };
         for i in 0..number_of_faces {
             if i >= self.m_cfg.boundary_conditions.len() {
-                self.m_cfg.boundary_conditions.push(FaceBC {
+                self.m_cfg.boundary_conditions.push(momentum::FaceBC {
                     boundary_face: possible_faces[i],
-                    boundary_condition: BoundaryConditionGui::NoSlip,
+                    boundary_condition: momentum::BoundaryConditionGui::NoSlip,
                 });
             }
             let face_bc = &mut self.m_cfg.boundary_conditions[i];
@@ -373,29 +314,31 @@ impl GuiApp {
                         }
                     });
                 let (cur_bb_rho, cur_ux, cur_uy, cur_uz) = match &face_bc.boundary_condition {
-                    BoundaryConditionGui::BounceBack { rho, ux, uy, uz } => (*rho, *ux, *uy, *uz),
+                    momentum::BoundaryConditionGui::BounceBack { rho, ux, uy, uz } => {
+                        (*rho, *ux, *uy, *uz)
+                    }
                     _ => (1.0, 0.0, 0.0, 0.0),
                 };
                 let cur_abb_rho = match &face_bc.boundary_condition {
-                    BoundaryConditionGui::AntiBounceBack { rho } => *rho,
+                    momentum::BoundaryConditionGui::AntiBounceBack { rho } => *rho,
                     _ => 1.0,
                 };
                 egui::ComboBox::from_id_salt(format!("boundary_condition_combo_box_{}", i))
                     .selected_text(match &face_bc.boundary_condition {
-                        BoundaryConditionGui::NoSlip => "No-slip",
-                        BoundaryConditionGui::BounceBack { .. } => "Bounce-back",
-                        BoundaryConditionGui::AntiBounceBack { .. } => "Anti-bounce-back",
-                        BoundaryConditionGui::Periodic => "Periodic",
+                        momentum::BoundaryConditionGui::NoSlip => "No-slip",
+                        momentum::BoundaryConditionGui::BounceBack { .. } => "Bounce-back",
+                        momentum::BoundaryConditionGui::AntiBounceBack { .. } => "Anti-bounce-back",
+                        momentum::BoundaryConditionGui::Periodic => "Periodic",
                     })
                     .show_ui(ui, |ui| {
                         ui.selectable_value(
                             &mut face_bc.boundary_condition,
-                            BoundaryConditionGui::NoSlip,
+                            momentum::BoundaryConditionGui::NoSlip,
                             "No-slip",
                         );
                         ui.selectable_value(
                             &mut face_bc.boundary_condition,
-                            BoundaryConditionGui::BounceBack {
+                            momentum::BoundaryConditionGui::BounceBack {
                                 rho: cur_bb_rho,
                                 ux: cur_ux,
                                 uy: cur_uy,
@@ -405,17 +348,17 @@ impl GuiApp {
                         );
                         ui.selectable_value(
                             &mut face_bc.boundary_condition,
-                            BoundaryConditionGui::AntiBounceBack { rho: cur_abb_rho },
+                            momentum::BoundaryConditionGui::AntiBounceBack { rho: cur_abb_rho },
                             "Anti-bounce-back",
                         );
                         ui.selectable_value(
                             &mut face_bc.boundary_condition,
-                            BoundaryConditionGui::Periodic,
+                            momentum::BoundaryConditionGui::Periodic,
                             "Periodic",
                         );
                     });
                 match &mut face_bc.boundary_condition {
-                    BoundaryConditionGui::BounceBack { rho, ux, uy, uz } => {
+                    momentum::BoundaryConditionGui::BounceBack { rho, ux, uy, uz } => {
                         ui.label("rho:");
                         ui.add(egui::DragValue::new(rho).speed(0.01));
                         ui.label("ux:");
@@ -429,7 +372,7 @@ impl GuiApp {
                             *uz = 0.0;
                         }
                     }
-                    BoundaryConditionGui::AntiBounceBack { rho } => {
+                    momentum::BoundaryConditionGui::AntiBounceBack { rho } => {
                         ui.label("rho:");
                         ui.add(egui::DragValue::new(rho).speed(0.01));
                     }
@@ -448,11 +391,12 @@ impl GuiApp {
         self.ui_node_types(ui);
     }
 
-    fn ui_lattice_parameters(&mut self, ui: &mut egui::Ui) {
+    fn ui_m_lattice_parameters(&mut self, ui: &mut egui::Ui) {
         ui.heading("Lattice parameters");
-        self.ui_velocity_set(ui);
+        let dim = self.m_cfg.dim.clone(); // copy enum to avoid borrowing self.m_cfg immutably
+        self.m_cfg.ui_velocity_set(ui, dim);
         ui.add_space(10.0);
-        self.ui_collision_operator(ui);
+        self.m_cfg.ui_collision_operator(ui);
         ui.add_space(10.0);
         self.ui_delta_x(ui);
         self.ui_delta_t(ui);
@@ -460,7 +404,7 @@ impl GuiApp {
         self.ui_reference_pressure(ui);
     }
 
-    fn ui_initial_values(&mut self, ui: &mut egui::Ui) {
+    fn ui_m_initial_values(&mut self, ui: &mut egui::Ui) {
         ui.heading("Initial values");
         self.ui_initial_density(ui);
         ui.add_space(10.0);
@@ -497,6 +441,63 @@ impl GuiApp {
         self.ui_commit_hash(ui);
     }
 
+    fn ui_passive_scalars(&mut self, ui: &mut egui::Ui) {
+        let dim = self.m_cfg.dim.clone();
+        ui.heading("Passive scalars");
+        ui.horizontal(|ui| {
+            ui.label("Number of passive scalars:");
+            ui.add(
+                egui::DragValue::new(&mut self.n_passive_scalars)
+                    .range(0..=10)
+                    .speed(1),
+            );
+        });
+        ui.add_space(10.0);
+        while self.ps_cfg_vec.len() < self.n_passive_scalars {
+            self.ps_cfg_vec.push(passive_scalar::GuiConfig::default());
+        }
+        while self.ps_cfg_vec.len() > self.n_passive_scalars {
+            self.ps_cfg_vec.pop();
+        }
+        // for (i, _) in self.ps_cfg_vec.iter_mut().enumerate() {
+        //     ui.collapsing(format!("Passive scalar {}", i), |ui| {
+        //     ui.horizontal_wrapped(|ui| {
+        //         ui.heading("Scalar name:");
+        //         ui.label("It's a passive scalar.");
+        //     });
+        // });
+        for (i, ps_cfg) in self.ps_cfg_vec.iter_mut().enumerate() {
+            let id = egui::Id::new(format!("ps_window_open_{}", i));
+            let mut open = ui.memory(|mem| mem.data.get_temp::<bool>(id).unwrap_or(false));
+
+            ui.horizontal(|ui| {
+                ui.label(format!("Scalar {}:", i));
+                ui.text_edit_singleline(&mut ps_cfg.scalar_name);
+                if ui.button(if open { "Close" } else { "Open" }).clicked() {
+                    open = !open;
+                }
+            });
+
+            if open {
+                let ctx = ui.ctx();
+                egui::Window::new(format!("Scalar {}: {}", i, ps_cfg.scalar_name))
+                    .id(egui::Id::new(format!("ps_window_{}", i)))
+                    .open(&mut open)
+                    .show(ctx, |ui| {
+                        ps_cfg.ui_scalar_name(ui);
+                        ui.separator();
+                        ps_cfg.ui_initial_scalar_value(ui);
+                        ui.separator();
+                        ps_cfg.ui_lattice_parameters(ui, dim);
+                        ui.separator();
+                        ps_cfg.ui_boundary_conditions(ui, dim);
+                    });
+            }
+
+            ui.memory_mut(|mem| mem.data.insert_temp(id, open));
+        }
+    }
+
     fn ui_build_button(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             if ui.button("Build case").clicked() {
@@ -509,9 +510,9 @@ impl GuiApp {
                         let pre_processing_dir = case_dir.join("pre_processing");
                         std::fs::create_dir_all(&src_dir)?;
                         std::fs::create_dir_all(&pre_processing_dir)?;
-                        let cargo_toml_content = self.c_cfg.generate_cargo_toml();
+                        let cargo_toml_content = self.c_cfg.get_cargo_toml();
                         std::fs::write(case_dir.join("Cargo.toml"), cargo_toml_content)?;
-                        let main_rs_content = self.m_cfg.generate_main_rs();
+                        let main_rs_content = self.get_main_rs_content();
                         std::fs::write(src_dir.join("main.rs"), main_rs_content)?;
                         Ok::<(), std::io::Error>(())
                     })();
@@ -523,6 +524,58 @@ impl GuiApp {
             }
             ui.label(&self.status);
         });
+    }
+}
+
+impl GuiApp {
+    fn get_ps_params_vec_content(&self) -> String {
+        let mut ps_params_contents = vec![];
+        for ps_cfg in &self.ps_cfg_vec {
+            let ps_params_content = ps_cfg.get_ps_params_content();
+            ps_params_contents.push(ps_params_content);
+        }
+        ps_params_contents.join("\n")
+    }
+
+    fn get_ps_solve_content(&self) -> String {
+        match self.n_passive_scalars {
+            0 => "".to_string(),
+            1 => {
+                let ps_cfg = &self.ps_cfg_vec[0];
+                let ps_params_literal = ps_cfg.get_ps_params_literal();
+                format!("    // ps::solve(m_params, {});", ps_params_literal)
+            }
+            _ => {
+                let ps_params_vec_literal = self
+                    .ps_cfg_vec
+                    .iter()
+                    .map(|ps_cfg| ps_cfg.get_ps_params_literal())
+                    .collect::<Vec<String>>()
+                    .join(", ");
+                format!("    // ps::solve_vec(m_params, vec![{}]);", ps_params_vec_literal)
+            }
+        }
+    }
+
+    fn get_main_rs_content(&self) -> String {
+        let n_literal = self.m_cfg.get_n_literal();
+        let m_params_content = self.m_cfg.get_m_params_content();
+        let ps_params_vec_content = self.get_ps_params_vec_content();
+        let ps_params_solve_content = self.get_ps_solve_content();
+        format!(
+            r#"use lbflow::prelude::*;
+
+fn main() {{
+    let n = {n_literal};
+
+{m_params_content}
+{ps_params_vec_content}
+
+    m::solve(m_params);
+{ps_params_solve_content}
+}}
+"#
+        )
     }
 }
 
@@ -540,13 +593,16 @@ impl eframe::App for GuiApp {
                 self.ui_domain(ui);
                 ui.separator();
 
-                self.ui_lattice_parameters(ui);
+                self.ui_m_lattice_parameters(ui);
                 ui.separator();
 
-                self.ui_initial_values(ui);
+                self.ui_m_initial_values(ui);
                 ui.separator();
 
-                self.ui_boundary_conditions(ui);
+                self.ui_m_boundary_conditions(ui);
+                ui.separator();
+
+                self.ui_passive_scalars(ui);
                 ui.separator();
 
                 self.ui_build_button(ui);
