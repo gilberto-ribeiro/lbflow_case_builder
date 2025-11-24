@@ -469,7 +469,6 @@ impl GuiApp {
         for (i, ps_cfg) in self.ps_cfg_vec.iter_mut().enumerate() {
             let id = egui::Id::new(format!("ps_window_open_{}", i));
             let mut open = ui.memory(|mem| mem.data.get_temp::<bool>(id).unwrap_or(false));
-
             ui.horizontal(|ui| {
                 ui.label(format!("Scalar {}:", i));
                 ui.text_edit_singleline(&mut ps_cfg.scalar_name);
@@ -477,7 +476,7 @@ impl GuiApp {
                     open = !open;
                 }
             });
-
+            // ui.add_space(5.0);
             if open {
                 let ctx = ui.ctx();
                 egui::Window::new(format!("Scalar {}: {}", i, ps_cfg.scalar_name))
@@ -583,10 +582,6 @@ impl eframe::App for GuiApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| {
-                ui.heading("lbflow case builder");
-                ui.separator();
-                ui.add_space(10.0);
-
                 self.ui_case_informations(ui);
                 ui.separator();
 
@@ -605,6 +600,7 @@ impl eframe::App for GuiApp {
                 self.ui_passive_scalars(ui);
                 ui.separator();
 
+                ui.add_space(10.0);
                 self.ui_build_button(ui);
             });
         });
