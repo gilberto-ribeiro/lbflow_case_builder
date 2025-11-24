@@ -46,7 +46,7 @@ impl Default for GuiConfig {
             scalar_name: String::new(),
             collision_operator: CollisionOperatorGui::BGK { tau: 0.5 },
             velocity_set: VelocitySetGui::D2Q9,
-            initial_scalar_value: InitialScalarValueGui::Uniform { value: 0.5 },
+            initial_scalar_value: InitialScalarValueGui::Uniform { value: 0.0 },
             boundary_conditions: vec![
                 FaceBC {
                     boundary_face: BoundaryFaceGui::West,
@@ -240,7 +240,7 @@ impl GuiConfig {
                     });
                 let cur_abb_value = match &face_bc.boundary_condition {
                     BoundaryConditionGui::AntiBounceBack { value } => *value,
-                    _ => 0.5,
+                    _ => 0.0,
                 };
                 egui::ComboBox::from_id_salt(format!("boundary_condition_combo_box_{}", i))
                     .selected_text(match &face_bc.boundary_condition {
