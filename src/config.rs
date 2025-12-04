@@ -13,7 +13,7 @@ pub(crate) trait LatticeGuiConfig {
             ui.label("Collision operator:");
             let current_tau = match &self.get_collision_operator_gui() {
                 CollisionOperatorGui::BGK { tau } => *tau,
-                _ => 1.0,
+                _ => 0.9,
             };
             let (current_omega_plus, current_omega_minus) = match &self.get_collision_operator_gui()
             {

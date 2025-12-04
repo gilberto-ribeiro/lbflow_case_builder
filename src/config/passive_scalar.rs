@@ -44,7 +44,7 @@ impl Default for GuiConfig {
     fn default() -> Self {
         GuiConfig {
             scalar_name: String::new(),
-            collision_operator: CollisionOperatorGui::BGK { tau: 0.5 },
+            collision_operator: CollisionOperatorGui::BGK { tau: 0.9 },
             velocity_set: VelocitySetGui::D2Q9,
             initial_scalar_value: InitialScalarValueGui::Uniform { value: 0.0 },
             boundary_conditions: vec![
@@ -75,7 +75,7 @@ impl GuiConfig {
     }
 
     fn get_scalar_name_literal(&self) -> String {
-        format!("\"{}\".to_string()", self.scalar_name)
+        format!("\"{}\"", self.scalar_name)
     }
 
     fn get_collision_operator_literal(&self) -> String {

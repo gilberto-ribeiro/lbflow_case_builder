@@ -70,7 +70,7 @@ impl Default for GuiConfig {
         GuiConfig {
             dim: Dimensionality::D2,
             n: [10, 10, 1],
-            collision_operator: CollisionOperatorGui::BGK { tau: 1.0 },
+            collision_operator: CollisionOperatorGui::BGK { tau: 0.9 },
             velocity_set: VelocitySetGui::D2Q9,
             delta_x: 0.001,
             delta_t: 0.001,
