@@ -69,7 +69,7 @@ impl GuiApp {
         });
     }
 
-    fn ui_velocity_set(&mut self, ui: &mut egui::Ui) {
+    fn _ui_velocity_set(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             ui.label("Velocity set:");
             match self.m_cfg.dim {
@@ -393,7 +393,7 @@ impl GuiApp {
 
     fn ui_m_lattice_parameters(&mut self, ui: &mut egui::Ui) {
         ui.heading("Lattice parameters");
-        let dim = self.m_cfg.dim.clone(); // copy enum to avoid borrowing self.m_cfg immutably
+        let dim = self.m_cfg.dim; // copy enum to avoid borrowing self.m_cfg immutably
         self.m_cfg.ui_velocity_set(ui, dim);
         ui.add_space(10.0);
         self.m_cfg.ui_collision_operator(ui);
@@ -442,7 +442,7 @@ impl GuiApp {
     }
 
     fn ui_passive_scalars(&mut self, ui: &mut egui::Ui) {
-        let dim = self.m_cfg.dim.clone();
+        let dim = self.m_cfg.dim;
         ui.heading("Passive scalars");
         ui.horizontal(|ui| {
             ui.label("Number of passive scalars:");
@@ -557,7 +557,6 @@ impl GuiApp {
     }
 
     fn get_main_rs_content(&self) -> String {
-        let n_literal = self.m_cfg.get_n_literal();
         let m_params_content = self.m_cfg.get_m_params_content();
         let ps_params_vec_content = self.get_ps_params_vec_content();
         let ps_params_solve_content = self.get_ps_solve_content();
@@ -565,8 +564,6 @@ impl GuiApp {
             r#"use lbflow::prelude::*;
 
 fn main() {{
-    let n = {n_literal};
-
 {m_params_content}
 {ps_params_vec_content}
 
