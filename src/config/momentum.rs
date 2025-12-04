@@ -70,7 +70,7 @@ impl Default for GuiConfig {
         GuiConfig {
             dim: Dimensionality::D2,
             n: [10, 10, 1],
-            collision_operator: CollisionOperatorGui::BGK { tau: 0.5 },
+            collision_operator: CollisionOperatorGui::BGK { tau: 1.0 },
             velocity_set: VelocitySetGui::D2Q9,
             delta_x: 0.001,
             delta_t: 0.001,
@@ -139,13 +139,13 @@ impl GuiConfig {
     fn get_initial_density_literal(&self) -> String {
         match &self.initial_density {
             InitialDensityGui::Uniform { rho } => {
-                format!("functions::uniform_density({}_f64, n.clone())", rho)
+                format!("InitialDensity::Uniform({}_f64)", rho)
             }
             InitialDensityGui::FromTimeStep { time_step } => {
-                format!("functions::density_from_time_step({}_usize)", time_step)
+                format!("InitialDensity::FromTimeStep({}_usize)", time_step)
             }
             InitialDensityGui::FromFile { file_path } => {
-                format!("functions::from_density_file(\"{}\")", file_path)
+                format!("InitialDensity::FromFile(\"{}\")", file_path)
             }
         }
     }
@@ -155,31 +155,31 @@ impl GuiConfig {
             InitialVelocityGui::Uniform { ux, uy, uz } => match self.dim {
                 Dimensionality::D2 => {
                     format!(
-                        "functions::uniform_velocity(vec![{}_f64, {}_f64], n.clone())",
+                        "InitialVelocity::Uniform(vec![{}_f64, {}_f64])",
                         ux, uy
                     )
                 }
                 Dimensionality::D3 => {
                     format!(
-                        "functions::uniform_velocity(vec![{}_f64, {}_f64, {}_f64], n.clone())",
+                        "InitialVelocity::Uniform(vec![{}_f64, {}_f64, {}_f64])",
                         ux, uy, uz
                     )
                 }
             },
             InitialVelocityGui::FromTimeStep { time_step } => {
-                format!("functions::velocity_from_time_step({}_usize)", time_step)
+                format!("InitialVelocity::FromTimeStep({}_usize)", time_step)
             }
             InitialVelocityGui::FromFile { file_path } => {
-                format!("functions::from_velocity_file(\"{}\")", file_path)
+                format!("InitialVelocity::FromFile(\"{}\")", file_path)
             }
         }
     }
 
     fn get_node_types_literal(&self) -> String {
         match self.node_types {
-            NodeTypesGui::OnlyFluidNodes => "functions::only_fluid_nodes(n.clone())".to_string(),
+            NodeTypesGui::OnlyFluidNodes => "OnlyFluidNodes".to_string(),
             NodeTypesGui::FromBounceBackMapFile => {
-                "functions::from_bounce_back_map_file()".to_string()
+                "FromBounceBackMapFile".to_string()
             }
         }
     }
@@ -210,6 +210,7 @@ impl LatticeGuiConfig for GuiConfig {
 
 impl GuiConfig {
     pub(crate) fn get_m_params_content(&self) -> String {
+        let n_literal = self.get_n_literal();
         let collision_operator_literal = self.get_collision_operator_literal();
         let velocity_set_literal = self.get_velocity_set_literal();
         let initial_density_literal = self.get_initial_density_literal();
@@ -222,7 +223,7 @@ impl GuiConfig {
         let reference_pressure_literal = format!("{}_f64", self.reference_pressure);
         format!(
             r#"    let m_params = m::Parameters {{
-        n: n.clone(),
+        n: {n_literal},
         node_types: {node_types_literal},
         velocity_set: {velocity_set_literal},
         collision_operator: {collision_operator_literal},

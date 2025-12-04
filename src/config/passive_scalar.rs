@@ -101,10 +101,10 @@ impl GuiConfig {
     fn get_initial_scalar_value_literal(&self) -> String {
         match &self.initial_scalar_value {
             InitialScalarValueGui::Uniform { value } => {
-                format!("functions::uniform_scalar_value({}_f64, n.clone())", value)
+                format!("InitialScalarValue::Uniform({}_f64)", value)
             }
             InitialScalarValueGui::FromFile { file_path } => {
-                format!("functions::from_scalar_file(\"{}\")", file_path)
+                format!("InitialScalarValue::FromFile(\"{}\")", file_path)
             }
         }
     }
