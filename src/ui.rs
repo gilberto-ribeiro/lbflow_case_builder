@@ -490,6 +490,8 @@ impl GuiApp {
                         ps_cfg.ui_lattice_parameters(ui, dim);
                         ui.separator();
                         ps_cfg.ui_boundary_conditions(ui, dim);
+                        ui.add_space(10.0);
+                        ps_cfg.ui_inner_boundary_condition(ui);
                     });
             }
 
@@ -501,7 +503,7 @@ impl GuiApp {
         ui.horizontal(|ui| {
             if ui.button("Build case").clicked() {
                 if self.c_cfg.case_name.trim().is_empty() {
-                    self.status = "Case name vazio".to_string();
+                    self.status = "Case name empty".to_string();
                 } else {
                     let result = (|| {
                         let case_dir = PathBuf::from(&self.parent_dir).join(&self.c_cfg.case_name);
@@ -516,8 +518,8 @@ impl GuiApp {
                         Ok::<(), std::io::Error>(())
                     })();
                     match result {
-                        Ok(_) => self.status = "Case criado com sucesso".to_string(),
-                        Err(e) => self.status = format!("Erro: {}", e),
+                        Ok(_) => self.status = "Case created successfully".to_string(),
+                        Err(e) => self.status = format!("Error: {}", e),
                     }
                 }
             }
@@ -551,7 +553,10 @@ impl GuiApp {
                     .map(|ps_cfg| ps_cfg.get_ps_params_literal())
                     .collect::<Vec<String>>()
                     .join(", ");
-                format!("    // ps::solve_vec(m_params, vec![{}]);", ps_params_vec_literal)
+                format!(
+                    "    // ps::solve_vec(m_params, vec![{}]);",
+                    ps_params_vec_literal
+                )
             }
         }
     }
