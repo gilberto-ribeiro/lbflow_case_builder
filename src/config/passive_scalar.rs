@@ -6,6 +6,7 @@ use eframe::egui;
 pub(crate) enum BoundaryConditionGui {
     AntiBounceBack { value: f64 },
     AntiBBNoFlux,
+    BBNoFlux,
     Periodic,
 }
 
@@ -16,9 +17,16 @@ impl BoundaryConditionGui {
                 format!("ps::bc::AntiBounceBack {{ scalar_value: {}_f64 }}", value)
             }
             BoundaryConditionGui::AntiBBNoFlux => "ps::bc::AntiBBNoFlux".to_string(),
+            BoundaryConditionGui::BBNoFlux => "ps::bc::BBNoFlux".to_string(),
             BoundaryConditionGui::Periodic => "ps::bc::Periodic".to_string(),
         }
     }
+}
+
+#[derive(PartialEq)]
+pub(crate) enum InnerBoundaryConditionGui {
+    InnerAntiBounceBack,
+    InnerBounceBack,
 }
 
 pub(crate) struct FaceBC {
@@ -29,6 +37,7 @@ pub(crate) struct FaceBC {
 #[derive(PartialEq)]
 pub(crate) enum InitialScalarValueGui {
     Uniform { value: f64 },
+    FromTimeStep { time_step: usize },
     FromFile { file_path: String },
 }
 
@@ -38,6 +47,7 @@ pub struct GuiConfig {
     pub(crate) velocity_set: VelocitySetGui,
     pub(crate) initial_scalar_value: InitialScalarValueGui,
     pub(crate) boundary_conditions: Vec<FaceBC>,
+    pub(crate) inner_boundary_condition: InnerBoundaryConditionGui,
 }
 
 impl Default for GuiConfig {
@@ -65,6 +75,7 @@ impl Default for GuiConfig {
                     boundary_condition: BoundaryConditionGui::AntiBBNoFlux,
                 },
             ],
+            inner_boundary_condition: InnerBoundaryConditionGui::InnerBounceBack,
         }
     }
 }
@@ -103,6 +114,9 @@ impl GuiConfig {
             InitialScalarValueGui::Uniform { value } => {
                 format!("InitialScalarValue::Uniform({}_f64)", value)
             }
+            InitialScalarValueGui::FromTimeStep { time_step } => {
+                format!("InitialScalarValue::FromTimeStep({}_usize)", time_step)
+            }
             InitialScalarValueGui::FromFile { file_path } => {
                 format!("InitialScalarValue::FromFile(\"{}\")", file_path)
             }
@@ -120,6 +134,15 @@ impl GuiConfig {
             ));
         }
         format!("vec![{}]", boundary_conditions_literals.join(", "))
+    }
+
+    fn get_inner_boundary_condition_literal(&self) -> String {
+        match &self.inner_boundary_condition {
+            InnerBoundaryConditionGui::InnerAntiBounceBack => {
+                "ps::bc::InnerAntiBounceBack".to_string()
+            }
+            InnerBoundaryConditionGui::InnerBounceBack => "ps::bc::InnerBounceBack".to_string(),
+        }
     }
 }
 
@@ -156,6 +179,10 @@ impl GuiConfig {
                 InitialScalarValueGui::Uniform { value } => *value,
                 _ => 1.0,
             };
+            let cur_time_step = match &self.initial_scalar_value {
+                InitialScalarValueGui::FromTimeStep { time_step } => *time_step,
+                _ => 0usize,
+            };
             let cur_file_path = match &self.initial_scalar_value {
                 InitialScalarValueGui::FromFile { file_path } => file_path.clone(),
                 _ => format!("./pre_processing/{}.csv", self.scalar_name),
@@ -164,6 +191,7 @@ impl GuiConfig {
             egui::ComboBox::from_id_salt("initial_scalar_value_combo_box")
                 .selected_text(match &self.initial_scalar_value {
                     InitialScalarValueGui::Uniform { value: _ } => "Uniform",
+                    InitialScalarValueGui::FromTimeStep { time_step: _ } => "From time step",
                     InitialScalarValueGui::FromFile { file_path: _ } => "From file",
                 })
                 .show_ui(ui, |ui| {
@@ -171,6 +199,13 @@ impl GuiConfig {
                         &mut self.initial_scalar_value,
                         InitialScalarValueGui::Uniform { value: cur_value },
                         "Uniform",
+                    );
+                    ui.selectable_value(
+                        &mut self.initial_scalar_value,
+                        InitialScalarValueGui::FromTimeStep {
+                            time_step: cur_time_step,
+                        },
+                        "From time step",
                     );
                     ui.selectable_value(
                         &mut self.initial_scalar_value,
@@ -185,6 +220,14 @@ impl GuiConfig {
             InitialScalarValueGui::Uniform { value } => {
                 ui.label("Value:");
                 ui.add(egui::DragValue::new(value).speed(0.01));
+            }
+            InitialScalarValueGui::FromTimeStep { time_step } => {
+                ui.label("Time step:");
+                ui.add(
+                    egui::DragValue::new(time_step)
+                        .range(0..=1_000_000)
+                        .speed(100),
+                );
             }
             InitialScalarValueGui::FromFile { file_path } => {
                 ui.label("File path:");
@@ -244,22 +287,28 @@ impl GuiConfig {
                 };
                 egui::ComboBox::from_id_salt(format!("boundary_condition_combo_box_{}", i))
                     .selected_text(match &face_bc.boundary_condition {
-                        BoundaryConditionGui::AntiBBNoFlux => "No-flux",
                         BoundaryConditionGui::AntiBounceBack { .. } => "Anti-bounce-back",
+                        BoundaryConditionGui::AntiBBNoFlux => "No-flux (ABB)",
+                        BoundaryConditionGui::BBNoFlux => "No-flux (BB)",
                         BoundaryConditionGui::Periodic => "Periodic",
                     })
                     .show_ui(ui, |ui| {
-                        ui.selectable_value(
-                            &mut face_bc.boundary_condition,
-                            BoundaryConditionGui::AntiBBNoFlux,
-                            "No-flux",
-                        );
                         ui.selectable_value(
                             &mut face_bc.boundary_condition,
                             BoundaryConditionGui::AntiBounceBack {
                                 value: cur_abb_value,
                             },
                             "Anti-bounce-back",
+                        );
+                        ui.selectable_value(
+                            &mut face_bc.boundary_condition,
+                            BoundaryConditionGui::AntiBBNoFlux,
+                            "No-flux (ABB)",
+                        );
+                        ui.selectable_value(
+                            &mut face_bc.boundary_condition,
+                            BoundaryConditionGui::BBNoFlux,
+                            "No-flux (BB)",
                         );
                         ui.selectable_value(
                             &mut face_bc.boundary_condition,
@@ -276,6 +325,40 @@ impl GuiConfig {
             });
         }
     }
+
+    pub(crate) fn ui_inner_boundary_condition(&mut self, ui: &mut egui::Ui) {
+        ui.horizontal(|ui| {
+            ui.label("Inner boundary condition:");
+            //     ui.selectable_value(
+            //         &mut self.inner_boundary_condition,
+            //         InnerBoundaryConditionGui::InnerBounceBack,
+            //         "Bounce-back",
+            //     );
+            //     ui.selectable_value(
+            //         &mut self.inner_boundary_condition,
+            //         InnerBoundaryConditionGui::InnerAntiBounceBack,
+            //         "Anti-bounce-back",
+            //     );
+            // });
+            egui::ComboBox::from_id_salt("inner_boundary_condition_combo_box")
+                .selected_text(match &self.inner_boundary_condition {
+                    InnerBoundaryConditionGui::InnerBounceBack => "Bounce-back",
+                    InnerBoundaryConditionGui::InnerAntiBounceBack => "Anti-bounce-back",
+                })
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(
+                        &mut self.inner_boundary_condition,
+                        InnerBoundaryConditionGui::InnerBounceBack,
+                        "Bounce-back",
+                    );
+                    ui.selectable_value(
+                        &mut self.inner_boundary_condition,
+                        InnerBoundaryConditionGui::InnerAntiBounceBack,
+                        "Anti-bounce-back",
+                    );
+                });
+        });
+    }
 }
 
 impl GuiConfig {
@@ -286,6 +369,7 @@ impl GuiConfig {
         let velocity_set_literal = self.get_velocity_set_literal();
         let initial_scalar_value_literal = self.get_initial_scalar_value_literal();
         let boundary_conditions_literal = self.get_boundary_conditions_literal();
+        let inner_boundary_condition_literal = self.get_inner_boundary_condition_literal();
         format!(
             r#"    let {ps_params_name_literal} = ps::Parameters {{
         scalar_name: {scalar_name_literal},
@@ -293,7 +377,9 @@ impl GuiConfig {
         velocity_set: {velocity_set_literal},
         initial_scalar_value: {initial_scalar_value_literal},
         boundary_conditions: {boundary_conditions_literal},
+        inner_boundary_condition: {inner_boundary_condition_literal},
         source_value: None,
+        adsorption_parameters: None,
     }};
 "#
         )
