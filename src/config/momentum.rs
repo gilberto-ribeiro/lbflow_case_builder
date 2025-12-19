@@ -154,10 +154,7 @@ impl GuiConfig {
         match &self.initial_velocity {
             InitialVelocityGui::Uniform { ux, uy, uz } => match self.dim {
                 Dimensionality::D2 => {
-                    format!(
-                        "InitialVelocity::Uniform(vec![{}_f64, {}_f64])",
-                        ux, uy
-                    )
+                    format!("InitialVelocity::Uniform(vec![{}_f64, {}_f64])", ux, uy)
                 }
                 Dimensionality::D3 => {
                     format!(
@@ -178,9 +175,7 @@ impl GuiConfig {
     fn get_node_types_literal(&self) -> String {
         match self.node_types {
             NodeTypesGui::OnlyFluidNodes => "OnlyFluidNodes".to_string(),
-            NodeTypesGui::FromBounceBackMapFile => {
-                "FromBounceBackMapFile".to_string()
-            }
+            NodeTypesGui::FromBounceBackMapFile => "FromBounceBackMapFile".to_string(),
         }
     }
 
