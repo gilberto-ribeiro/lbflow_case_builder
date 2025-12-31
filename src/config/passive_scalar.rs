@@ -7,6 +7,8 @@ pub(crate) enum BoundaryConditionGui {
     AntiBounceBack { value: f64 },
     AntiBBNoFlux,
     BBNoFlux,
+    ZerothOrderNoFlux,
+    SecondOrderNoFlux,
     Periodic,
 }
 
@@ -18,6 +20,8 @@ impl BoundaryConditionGui {
             }
             BoundaryConditionGui::AntiBBNoFlux => "ps::bc::AntiBBNoFlux".to_string(),
             BoundaryConditionGui::BBNoFlux => "ps::bc::BBNoFlux".to_string(),
+            BoundaryConditionGui::ZerothOrderNoFlux => "ps::bc::ZerothOrderNoFlux".to_string(),
+            BoundaryConditionGui::SecondOrderNoFlux => "ps::bc::SecondOrderNoFlux".to_string(),
             BoundaryConditionGui::Periodic => "ps::bc::Periodic".to_string(),
         }
     }
@@ -102,6 +106,7 @@ impl GuiConfig {
 
     fn get_velocity_set_literal(&self) -> String {
         match self.velocity_set {
+            VelocitySetGui::D2Q5 => "D2Q5".to_string(),
             VelocitySetGui::D2Q9 => "D2Q9".to_string(),
             VelocitySetGui::D3Q15 => "D3Q15".to_string(),
             VelocitySetGui::D3Q19 => "D3Q19".to_string(),
@@ -290,6 +295,8 @@ impl GuiConfig {
                         BoundaryConditionGui::AntiBounceBack { .. } => "Anti-bounce-back",
                         BoundaryConditionGui::AntiBBNoFlux => "No-flux (ABB)",
                         BoundaryConditionGui::BBNoFlux => "No-flux (BB)",
+                        BoundaryConditionGui::ZerothOrderNoFlux => "No-flux (Zeroth order)",
+                        BoundaryConditionGui::SecondOrderNoFlux => "No-flux (Second order)",
                         BoundaryConditionGui::Periodic => "Periodic",
                     })
                     .show_ui(ui, |ui| {
@@ -309,6 +316,16 @@ impl GuiConfig {
                             &mut face_bc.boundary_condition,
                             BoundaryConditionGui::BBNoFlux,
                             "No-flux (BB)",
+                        );
+                        ui.selectable_value(
+                            &mut face_bc.boundary_condition,
+                            BoundaryConditionGui::ZerothOrderNoFlux,
+                            "No-flux (Zeroth order)",
+                        );
+                        ui.selectable_value(
+                            &mut face_bc.boundary_condition,
+                            BoundaryConditionGui::SecondOrderNoFlux,
+                            "No-flux (Second order)",
                         );
                         ui.selectable_value(
                             &mut face_bc.boundary_condition,

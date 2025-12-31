@@ -75,6 +75,7 @@ pub(crate) trait LatticeGuiConfig {
             ui.label("Velocity set:");
             match dim {
                 Dimensionality::D2 => {
+                    ui.selectable_value(self.get_velocity_set_gui(), VelocitySetGui::D2Q5, "D2Q5");
                     ui.selectable_value(self.get_velocity_set_gui(), VelocitySetGui::D2Q9, "D2Q9");
                 }
                 Dimensionality::D3 => {
@@ -107,6 +108,7 @@ pub(crate) enum Dimensionality {
 
 #[derive(PartialEq, Eq)]
 pub(crate) enum VelocitySetGui {
+    D2Q5,
     D2Q9,
     D3Q15,
     D3Q19,
