@@ -1,7 +1,5 @@
 use super::LatticeGuiConfig;
-use super::{
-    BoundaryFaceGui, CollisionOperatorGui, Dimensionality, NodeTypeMaskGui, VelocitySetGui,
-};
+use super::{BoundaryFaceGui, CollisionOperatorGui, Dimensionality, VelocitySetGui};
 
 #[derive(PartialEq)]
 pub(crate) enum BoundaryConditionGui {
