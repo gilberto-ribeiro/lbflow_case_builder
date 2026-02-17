@@ -6,7 +6,7 @@ use crate::config::*;
 pub struct GuiApp {
     d_cfg: domain::GuiConfig,
     m_cfg: momentum::GuiConfig,
-    n_passive_scalars: usize,
+    n_scalars: usize,
     s_cfg_vec: Vec<scalar::GuiConfig>,
     c_cfg: CargoGuiConfig,
     parent_dir: String,
@@ -18,7 +18,7 @@ impl Default for GuiApp {
         Self {
             d_cfg: domain::GuiConfig::default(),
             m_cfg: momentum::GuiConfig::default(),
-            n_passive_scalars: 0,
+            n_scalars: 0,
             s_cfg_vec: vec![],
             c_cfg: CargoGuiConfig::default(),
             parent_dir: String::from("./cases/case_000"),
@@ -451,22 +451,22 @@ impl GuiApp {
         self.ui_commit_hash(ui);
     }
 
-    fn ui_passive_scalars(&mut self, ui: &mut egui::Ui) {
+    fn ui_scalars(&mut self, ui: &mut egui::Ui) {
         let dim = self.d_cfg.dim;
-        ui.heading("Passive scalars");
+        ui.heading("Scalars");
         ui.horizontal(|ui| {
-            ui.label("Number of passive scalars:");
+            ui.label("Number of scalars:");
             ui.add(
-                egui::DragValue::new(&mut self.n_passive_scalars)
+                egui::DragValue::new(&mut self.n_scalars)
                     .range(0..=10)
                     .speed(1),
             );
         });
         ui.add_space(10.0);
-        while self.s_cfg_vec.len() < self.n_passive_scalars {
+        while self.s_cfg_vec.len() < self.n_scalars {
             self.s_cfg_vec.push(scalar::GuiConfig::default());
         }
-        while self.s_cfg_vec.len() > self.n_passive_scalars {
+        while self.s_cfg_vec.len() > self.n_scalars {
             self.s_cfg_vec.pop();
         }
         // for (i, _) in self.ps_cfg_vec.iter_mut().enumerate() {
@@ -602,7 +602,7 @@ impl eframe::App for GuiApp {
                 self.ui_m_boundary_conditions(ui);
                 ui.separator();
 
-                self.ui_passive_scalars(ui);
+                self.ui_scalars(ui);
                 ui.separator();
 
                 ui.add_space(10.0);
