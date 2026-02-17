@@ -1,5 +1,7 @@
 use super::LatticeGuiConfig;
-use super::{BoundaryFaceGui, CollisionOperatorGui, Dimensionality, NodeTypesGui, VelocitySetGui};
+use super::{
+    BoundaryFaceGui, CollisionOperatorGui, Dimensionality, NodeTypeMaskGui, VelocitySetGui,
+};
 
 #[derive(PartialEq)]
 pub(crate) enum BoundaryConditionGui {
@@ -12,21 +14,21 @@ pub(crate) enum BoundaryConditionGui {
 impl BoundaryConditionGui {
     fn to_literal(&self, dim: &Dimensionality) -> String {
         match self {
-            BoundaryConditionGui::NoSlip => "m::bc::NoSlip".to_string(),
+            BoundaryConditionGui::NoSlip => "MomentumBC::NoSlip".to_string(),
             BoundaryConditionGui::BounceBack { rho, ux, uy, uz } => {
                 let velocity_vec = match dim {
                     Dimensionality::D2 => format!("vec![{}_f64, {}_f64]", ux, uy),
                     Dimensionality::D3 => format!("vec![{}_f64, {}_f64, {}_f64]", ux, uy, uz),
                 };
                 format!(
-                    "m::bc::BounceBack {{ density: {}_f64, velocity: {} }}",
+                    "MomentumBC::BounceBack {{ density: {}_f64, velocity: {} }}",
                     rho, velocity_vec
                 )
             }
             BoundaryConditionGui::AntiBounceBack { rho } => {
-                format!("m::bc::AntiBounceBack {{ density: {}_f64 }}", rho)
+                format!("MomentumBC::AntiBounceBack {{ density: {}_f64 }}", rho)
             }
-            BoundaryConditionGui::Periodic => "m::bc::Periodic".to_string(),
+            BoundaryConditionGui::Periodic => "MomentumBC::Periodic".to_string(),
         }
     }
 }
@@ -51,10 +53,8 @@ pub(crate) enum InitialVelocityGui {
 }
 
 pub struct GuiConfig {
-    pub(crate) dim: Dimensionality,
-    pub(crate) n: [usize; 3],
-    pub(crate) collision_operator: CollisionOperatorGui,
     pub(crate) velocity_set: VelocitySetGui,
+    pub(crate) collision_operator: CollisionOperatorGui,
     pub(crate) delta_x: f64,
     pub(crate) delta_t: f64,
     pub(crate) physical_density: f64,
@@ -62,16 +62,13 @@ pub struct GuiConfig {
     pub(crate) initial_density: InitialDensityGui,
     pub(crate) initial_velocity: InitialVelocityGui,
     pub(crate) boundary_conditions: Vec<FaceBC>,
-    pub(crate) node_types: NodeTypesGui,
 }
 
 impl Default for GuiConfig {
     fn default() -> Self {
         GuiConfig {
-            dim: Dimensionality::D2,
-            n: [10, 10, 1],
-            collision_operator: CollisionOperatorGui::BGK { tau: 0.9 },
             velocity_set: VelocitySetGui::D2Q9,
+            collision_operator: CollisionOperatorGui::BGK { tau: 0.9 },
             delta_x: 0.001,
             delta_t: 0.001,
             physical_density: 998.0,
@@ -100,19 +97,18 @@ impl Default for GuiConfig {
                     boundary_condition: BoundaryConditionGui::NoSlip,
                 },
             ],
-            node_types: NodeTypesGui::OnlyFluidNodes,
         }
     }
 }
 
 impl GuiConfig {
-    pub(crate) fn get_n_literal(&self) -> String {
-        match self.dim {
-            Dimensionality::D2 => format!("vec![{}_usize, {}_usize]", self.n[0], self.n[1]),
-            Dimensionality::D3 => format!(
-                "vec![{}_usize, {}_usize, {}_usize]",
-                self.n[0], self.n[1], self.n[2]
-            ),
+    fn get_velocity_set_literal(&self) -> String {
+        match self.velocity_set {
+            VelocitySetGui::D2Q5 => "D2Q5".to_string(),
+            VelocitySetGui::D2Q9 => "D2Q9".to_string(),
+            VelocitySetGui::D3Q15 => "D3Q15".to_string(),
+            VelocitySetGui::D3Q19 => "D3Q19".to_string(),
+            VelocitySetGui::D3Q27 => "D3Q27".to_string(),
         }
     }
 
@@ -124,16 +120,6 @@ impl GuiConfig {
                 omega_minus,
             } => format!("TRT({}_f64, {}_f64)", omega_plus, omega_minus),
             CollisionOperatorGui::MRT => "MRT(vec![todo!(\"Insert parameters\")])".to_string(),
-        }
-    }
-
-    fn get_velocity_set_literal(&self) -> String {
-        match self.velocity_set {
-            VelocitySetGui::D2Q5 => "D2Q5".to_string(),
-            VelocitySetGui::D2Q9 => "D2Q9".to_string(),
-            VelocitySetGui::D3Q15 => "D3Q15".to_string(),
-            VelocitySetGui::D3Q19 => "D3Q19".to_string(),
-            VelocitySetGui::D3Q27 => "D3Q27".to_string(),
         }
     }
 
@@ -151,9 +137,9 @@ impl GuiConfig {
         }
     }
 
-    fn get_initial_velocity_literal(&self) -> String {
+    fn get_initial_velocity_literal(&self, dim: &Dimensionality) -> String {
         match &self.initial_velocity {
-            InitialVelocityGui::Uniform { ux, uy, uz } => match self.dim {
+            InitialVelocityGui::Uniform { ux, uy, uz } => match dim {
                 Dimensionality::D2 => {
                     format!("InitialVelocity::Uniform(vec![{}_f64, {}_f64])", ux, uy)
                 }
@@ -173,18 +159,11 @@ impl GuiConfig {
         }
     }
 
-    fn get_node_types_literal(&self) -> String {
-        match self.node_types {
-            NodeTypesGui::OnlyFluidNodes => "OnlyFluidNodes".to_string(),
-            NodeTypesGui::FromBounceBackMapFile => "FromBounceBackMapFile".to_string(),
-        }
-    }
-
-    fn get_boundary_conditions_literal(&self) -> String {
+    fn get_boundary_conditions_literal(&self, dim: &Dimensionality) -> String {
         let mut boundary_conditions_literals = vec![];
         for face_bc in &self.boundary_conditions {
             let boundary_face_literal = face_bc.boundary_face.to_literal();
-            let boundary_condition_literal = face_bc.boundary_condition.to_literal(&self.dim);
+            let boundary_condition_literal = face_bc.boundary_condition.to_literal(dim);
             boundary_conditions_literals.push(format!(
                 "({}, {})",
                 boundary_face_literal, boundary_condition_literal
@@ -205,22 +184,18 @@ impl LatticeGuiConfig for GuiConfig {
 }
 
 impl GuiConfig {
-    pub(crate) fn get_m_params_content(&self) -> String {
-        let n_literal = self.get_n_literal();
-        let collision_operator_literal = self.get_collision_operator_literal();
+    pub(crate) fn get_m_params_content(&self, dim: &Dimensionality) -> String {
         let velocity_set_literal = self.get_velocity_set_literal();
-        let initial_density_literal = self.get_initial_density_literal();
-        let initial_velocity_literal = self.get_initial_velocity_literal();
-        let boundary_conditions_literal = self.get_boundary_conditions_literal();
-        let node_types_literal = self.get_node_types_literal();
+        let collision_operator_literal = self.get_collision_operator_literal();
         let delta_x_literal = format!("{}_f64", self.delta_x);
         let delta_t_literal = format!("{}_f64", self.delta_t);
         let physical_density_literal = format!("{}_f64", self.physical_density);
         let reference_pressure_literal = format!("{}_f64", self.reference_pressure);
+        let initial_density_literal = self.get_initial_density_literal();
+        let initial_velocity_literal = self.get_initial_velocity_literal(dim);
+        let boundary_conditions_literal = self.get_boundary_conditions_literal(dim);
         format!(
-            r#"    let m_params = m::Parameters {{
-        n: {n_literal},
-        node_types: {node_types_literal},
+            r#"    let m_params = MomentumParams {{
         velocity_set: {velocity_set_literal},
         collision_operator: {collision_operator_literal},
         delta_x: {delta_x_literal},
@@ -231,8 +206,6 @@ impl GuiConfig {
         initial_velocity: {initial_velocity_literal},
         boundary_conditions: {boundary_conditions_literal},
         force: None,
-        multiphase_parameters: None,
-        post_functions: None,
     }};
 "#
         )

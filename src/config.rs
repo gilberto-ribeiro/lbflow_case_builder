@@ -1,5 +1,6 @@
+pub(crate) mod domain;
 pub(crate) mod momentum;
-pub(crate) mod passive_scalar;
+pub(crate) mod scalar;
 
 use eframe::egui;
 
@@ -146,39 +147,35 @@ impl BoundaryFaceGui {
 }
 
 #[derive(PartialEq, Eq)]
-pub(crate) enum NodeTypesGui {
-    FromBounceBackMapFile,
+pub(crate) enum NodeTypeMaskGui {
+    FromMapFile,
     OnlyFluidNodes,
 }
 
 pub(crate) struct CargoGuiConfig {
     pub(crate) case_name: String,
-    pub(crate) commit_hash: String,
+    pub(crate) source_code_path: String,
 }
 
 impl Default for CargoGuiConfig {
     fn default() -> Self {
         CargoGuiConfig {
-            case_name: "case_000".to_string(),
-            commit_hash: String::new(),
+            case_name: "case_000_00".to_string(),
+            source_code_path: String::from("../../../lbflow_soa"),
         }
     }
 }
 
 impl CargoGuiConfig {
-    fn get_commit_hash_literal(&self) -> String {
-        if self.commit_hash.is_empty() {
-            "".to_string()
-        } else {
-            format!(", rev = \"{}\"", self.commit_hash)
-        }
+    fn get_source_code_path_literal(&self) -> String {
+        format!("\"{}\"", self.source_code_path)
     }
 }
 
 impl CargoGuiConfig {
     pub fn get_cargo_toml(&self) -> String {
         let case_name = &self.case_name;
-        let commit_hash_literal = self.get_commit_hash_literal();
+        let commit_hash_literal = self.get_source_code_path_literal();
         format!(
             r#"[package]
 name = "{case_name}"
@@ -186,7 +183,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-lbflow = {{ version = "0.1.0", git = "https://github.com/gilberto-ribeiro/lbflow.git"{commit_hash_literal} }}
+lbflow_soa = {{ version = "0.1.0", path = {commit_hash_literal} }}
 "#
         )
     }

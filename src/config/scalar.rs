@@ -16,13 +16,17 @@ impl BoundaryConditionGui {
     fn to_literal(&self) -> String {
         match self {
             BoundaryConditionGui::AntiBounceBack { value } => {
-                format!("ps::bc::AntiBounceBack {{ scalar_value: {}_f64 }}", value)
+                format!("ScalarBC::AntiBounceBack {{ scalar_value: {}_f64 }}", value)
             }
-            BoundaryConditionGui::AntiBBNoFlux => "ps::bc::AntiBBNoFlux".to_string(),
-            BoundaryConditionGui::BBNoFlux => "ps::bc::BBNoFlux".to_string(),
-            BoundaryConditionGui::ZerothOrderNoFlux => "ps::bc::ZerothOrderNoFlux".to_string(),
-            BoundaryConditionGui::SecondOrderNoFlux => "ps::bc::SecondOrderNoFlux".to_string(),
-            BoundaryConditionGui::Periodic => "ps::bc::Periodic".to_string(),
+            BoundaryConditionGui::AntiBBNoFlux => "ScalarBC::AntiBBNoFlux".to_string(),
+            BoundaryConditionGui::BBNoFlux => "ScalarBC::BBNoFlux".to_string(),
+            BoundaryConditionGui::ZerothOrderNoFlux => {
+                "ScalarBC::ZerothOrderNoFlux { unknown_populations_only: false }".to_string()
+            }
+            BoundaryConditionGui::SecondOrderNoFlux => {
+                "ScalarBC::SecondOrderNoFlux { unknown_populations_only: true }".to_string()
+            }
+            BoundaryConditionGui::Periodic => "ScalarBC::Periodic".to_string(),
         }
     }
 }
@@ -46,7 +50,7 @@ pub(crate) enum InitialScalarValueGui {
 }
 
 pub struct GuiConfig {
-    pub(crate) scalar_name: String,
+    pub(crate) name: String,
     pub(crate) collision_operator: CollisionOperatorGui,
     pub(crate) velocity_set: VelocitySetGui,
     pub(crate) initial_scalar_value: InitialScalarValueGui,
@@ -57,7 +61,7 @@ pub struct GuiConfig {
 impl Default for GuiConfig {
     fn default() -> Self {
         GuiConfig {
-            scalar_name: String::new(),
+            name: String::new(),
             collision_operator: CollisionOperatorGui::BGK { tau: 0.9 },
             velocity_set: VelocitySetGui::D2Q9,
             initial_scalar_value: InitialScalarValueGui::Uniform { value: 0.0 },
@@ -85,12 +89,12 @@ impl Default for GuiConfig {
 }
 
 impl GuiConfig {
-    pub(crate) fn get_ps_params_literal(&self) -> String {
-        format!("ps_params_{}", self.scalar_name)
+    pub(crate) fn get_s_params_name_literal(&self) -> String {
+        format!("s_params_{}", self.name)
     }
 
-    fn get_scalar_name_literal(&self) -> String {
-        format!("\"{}\"", self.scalar_name)
+    fn get_name_literal(&self) -> String {
+        format!("\"{}\"", self.name)
     }
 
     fn get_collision_operator_literal(&self) -> String {
@@ -143,10 +147,8 @@ impl GuiConfig {
 
     fn get_inner_boundary_condition_literal(&self) -> String {
         match &self.inner_boundary_condition {
-            InnerBoundaryConditionGui::InnerAntiBounceBack => {
-                "ps::bc::InnerAntiBounceBack".to_string()
-            }
-            InnerBoundaryConditionGui::InnerBounceBack => "ps::bc::InnerBounceBack".to_string(),
+            InnerBoundaryConditionGui::InnerAntiBounceBack => "InnerAntiBounceBack".to_string(),
+            InnerBoundaryConditionGui::InnerBounceBack => "InnerBounceBack".to_string(),
         }
     }
 }
@@ -165,7 +167,7 @@ impl GuiConfig {
     pub(crate) fn ui_scalar_name(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             ui.label("Scalar name:");
-            ui.text_edit_singleline(&mut self.scalar_name);
+            ui.text_edit_singleline(&mut self.name);
         });
     }
 
@@ -190,7 +192,7 @@ impl GuiConfig {
             };
             let cur_file_path = match &self.initial_scalar_value {
                 InitialScalarValueGui::FromFile { file_path } => file_path.clone(),
-                _ => format!("./pre_processing/{}.csv", self.scalar_name),
+                _ => format!("./pre_processing/{}.csv", self.name),
             };
 
             egui::ComboBox::from_id_salt("initial_scalar_value_combo_box")
@@ -379,23 +381,23 @@ impl GuiConfig {
 }
 
 impl GuiConfig {
-    pub(crate) fn get_ps_params_content(&self) -> String {
-        let ps_params_name_literal = self.get_ps_params_literal();
-        let scalar_name_literal = self.get_scalar_name_literal();
-        let collision_operator_literal = self.get_collision_operator_literal();
+    pub(crate) fn get_s_params_content(&self) -> String {
+        let s_params_name_literal = self.get_s_params_name_literal();
+        let name_literal = self.get_name_literal();
         let velocity_set_literal = self.get_velocity_set_literal();
+        let collision_operator_literal = self.get_collision_operator_literal();
         let initial_scalar_value_literal = self.get_initial_scalar_value_literal();
         let boundary_conditions_literal = self.get_boundary_conditions_literal();
         let inner_boundary_condition_literal = self.get_inner_boundary_condition_literal();
         format!(
-            r#"    let {ps_params_name_literal} = ps::Parameters {{
-        scalar_name: {scalar_name_literal},
-        collision_operator: {collision_operator_literal},
+            r#"    let {s_params_name_literal} = ScalarParams {{
+        name: {name_literal},
         velocity_set: {velocity_set_literal},
+        collision_operator: {collision_operator_literal},
         initial_scalar_value: {initial_scalar_value_literal},
         boundary_conditions: {boundary_conditions_literal},
         inner_boundary_condition: {inner_boundary_condition_literal},
-        source_value: None,
+        scalar_source: None,
         adsorption_parameters: None,
     }};
 "#

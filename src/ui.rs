@@ -4,9 +4,10 @@ use std::path::PathBuf;
 use crate::config::*;
 
 pub struct GuiApp {
+    d_cfg: domain::GuiConfig,
     m_cfg: momentum::GuiConfig,
     n_passive_scalars: usize,
-    ps_cfg_vec: Vec<passive_scalar::GuiConfig>,
+    s_cfg_vec: Vec<scalar::GuiConfig>,
     c_cfg: CargoGuiConfig,
     parent_dir: String,
     status: String,
@@ -15,11 +16,12 @@ pub struct GuiApp {
 impl Default for GuiApp {
     fn default() -> Self {
         Self {
+            d_cfg: domain::GuiConfig::default(),
             m_cfg: momentum::GuiConfig::default(),
             n_passive_scalars: 0,
-            ps_cfg_vec: vec![],
+            s_cfg_vec: vec![],
             c_cfg: CargoGuiConfig::default(),
-            parent_dir: String::from("./cases"),
+            parent_dir: String::from("./cases/case_000"),
             status: String::new(),
         }
     }
@@ -33,38 +35,38 @@ impl GuiApp {
     fn ui_dim(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             ui.label("Dimensions:");
-            ui.selectable_value(&mut self.m_cfg.dim, Dimensionality::D2, "2D");
-            ui.selectable_value(&mut self.m_cfg.dim, Dimensionality::D3, "3D");
+            ui.selectable_value(&mut self.d_cfg.dim, Dimensionality::D2, "2D");
+            ui.selectable_value(&mut self.d_cfg.dim, Dimensionality::D3, "3D");
         });
     }
 
-    fn ui_n(&mut self, ui: &mut egui::Ui) {
+    fn ui_grid(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             ui.label("nx:");
-            ui.add(egui::DragValue::new(&mut self.m_cfg.n[0]).range(1..=10_000));
+            ui.add(egui::DragValue::new(&mut self.d_cfg.grid[0]).range(1..=10_000));
             ui.label("ny:");
-            ui.add(egui::DragValue::new(&mut self.m_cfg.n[1]).range(1..=10_000));
-            if self.m_cfg.dim == Dimensionality::D3 {
+            ui.add(egui::DragValue::new(&mut self.d_cfg.grid[1]).range(1..=10_000));
+            if self.d_cfg.dim == Dimensionality::D3 {
                 ui.label("nz:");
-                ui.add(egui::DragValue::new(&mut self.m_cfg.n[2]).range(1..=10_000));
+                ui.add(egui::DragValue::new(&mut self.d_cfg.grid[2]).range(1..=10_000));
             } else {
-                self.m_cfg.n[2] = 1;
+                self.d_cfg.grid[2] = 1;
             }
         });
     }
 
     fn ui_node_types(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
-            ui.label("Node types:");
+            ui.label("Node type mask:");
             ui.selectable_value(
-                &mut self.m_cfg.node_types,
-                NodeTypesGui::OnlyFluidNodes,
+                &mut self.d_cfg.node_type_mask,
+                NodeTypeMaskGui::OnlyFluidNodes,
                 "Only fluid nodes",
             );
             ui.selectable_value(
-                &mut self.m_cfg.node_types,
-                NodeTypesGui::FromBounceBackMapFile,
-                "From bounce-back map file",
+                &mut self.d_cfg.node_type_mask,
+                NodeTypeMaskGui::FromMapFile,
+                "From map file",
             );
         });
     }
@@ -72,7 +74,7 @@ impl GuiApp {
     fn _ui_velocity_set(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             ui.label("Velocity set:");
-            match self.m_cfg.dim {
+            match self.d_cfg.dim {
                 Dimensionality::D2 => {
                     ui.selectable_value(&mut self.m_cfg.velocity_set, VelocitySetGui::D2Q9, "D2Q9");
                 }
@@ -101,6 +103,7 @@ impl GuiApp {
         ui.horizontal(|ui| {
             ui.label("Delta x:");
             ui.add(egui::DragValue::new(&mut self.m_cfg.delta_x).speed(0.01));
+            ui.label("m");
         });
     }
 
@@ -108,20 +111,23 @@ impl GuiApp {
         ui.horizontal(|ui| {
             ui.label("Delta t:");
             ui.add(egui::DragValue::new(&mut self.m_cfg.delta_t).speed(0.01));
+            ui.label("s");
         });
     }
 
     fn ui_physical_density(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
-            ui.label("Physical density (kg/m^3):");
+            ui.label("Physical density:");
             ui.add(egui::DragValue::new(&mut self.m_cfg.physical_density).speed(0.1));
+            ui.label("kg/m³");
         });
     }
 
     fn ui_reference_pressure(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
-            ui.label("Reference pressure (Pa):");
+            ui.label("Reference pressure:");
             ui.add(egui::DragValue::new(&mut self.m_cfg.reference_pressure).speed(1.0));
+            ui.label("Pa");
         });
     }
 
@@ -246,7 +252,7 @@ impl GuiApp {
                 ui.add(egui::DragValue::new(ux).speed(0.01));
                 ui.label("uy:");
                 ui.add(egui::DragValue::new(uy).speed(0.01));
-                if self.m_cfg.dim == Dimensionality::D3 {
+                if self.d_cfg.dim == Dimensionality::D3 {
                     ui.label("uz:");
                     ui.add(egui::DragValue::new(uz).speed(0.01));
                 } else {
@@ -270,7 +276,7 @@ impl GuiApp {
 
     fn ui_m_boundary_conditions(&mut self, ui: &mut egui::Ui) {
         ui.heading("Boundary conditions");
-        let (possible_faces, number_of_faces) = match self.m_cfg.dim {
+        let (possible_faces, number_of_faces) = match self.d_cfg.dim {
             Dimensionality::D2 => (
                 vec![
                     BoundaryFaceGui::West,
@@ -365,7 +371,7 @@ impl GuiApp {
                         ui.add(egui::DragValue::new(ux).speed(0.01));
                         ui.label("uy:");
                         ui.add(egui::DragValue::new(uy).speed(0.01));
-                        if self.m_cfg.dim == Dimensionality::D3 {
+                        if self.d_cfg.dim == Dimensionality::D3 {
                             ui.label("uz:");
                             ui.add(egui::DragValue::new(uz).speed(0.01));
                         } else {
@@ -383,25 +389,29 @@ impl GuiApp {
     }
 
     fn ui_domain(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Domain configurations");
+        ui.heading("Domain");
         self.ui_dim(ui);
         ui.add_space(10.0);
-        self.ui_n(ui);
+        self.ui_grid(ui);
         ui.add_space(10.0);
         self.ui_node_types(ui);
     }
 
+    fn ui_physical_properties(&mut self, ui: &mut egui::Ui) {
+        ui.heading("Physical properties");
+        self.ui_delta_x(ui);
+        self.ui_delta_t(ui);
+        ui.add_space(10.0);
+        self.ui_physical_density(ui);
+        self.ui_reference_pressure(ui);
+    }
+
     fn ui_m_lattice_parameters(&mut self, ui: &mut egui::Ui) {
         ui.heading("Lattice parameters");
-        let dim = self.m_cfg.dim; // copy enum to avoid borrowing self.m_cfg immutably
+        let dim = self.d_cfg.dim; // copy enum to avoid borrowing self.m_cfg immutably
         self.m_cfg.ui_velocity_set(ui, dim);
         ui.add_space(10.0);
         self.m_cfg.ui_collision_operator(ui);
-        ui.add_space(10.0);
-        self.ui_delta_x(ui);
-        self.ui_delta_t(ui);
-        self.ui_physical_density(ui);
-        self.ui_reference_pressure(ui);
     }
 
     fn ui_m_initial_values(&mut self, ui: &mut egui::Ui) {
@@ -420,8 +430,8 @@ impl GuiApp {
 
     fn ui_commit_hash(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
-            ui.label("Git commit hash:");
-            ui.text_edit_singleline(&mut self.c_cfg.commit_hash);
+            ui.label("Source code path:");
+            ui.text_edit_singleline(&mut self.c_cfg.source_code_path);
         });
     }
 
@@ -442,7 +452,7 @@ impl GuiApp {
     }
 
     fn ui_passive_scalars(&mut self, ui: &mut egui::Ui) {
-        let dim = self.m_cfg.dim;
+        let dim = self.d_cfg.dim;
         ui.heading("Passive scalars");
         ui.horizontal(|ui| {
             ui.label("Number of passive scalars:");
@@ -453,11 +463,11 @@ impl GuiApp {
             );
         });
         ui.add_space(10.0);
-        while self.ps_cfg_vec.len() < self.n_passive_scalars {
-            self.ps_cfg_vec.push(passive_scalar::GuiConfig::default());
+        while self.s_cfg_vec.len() < self.n_passive_scalars {
+            self.s_cfg_vec.push(scalar::GuiConfig::default());
         }
-        while self.ps_cfg_vec.len() > self.n_passive_scalars {
-            self.ps_cfg_vec.pop();
+        while self.s_cfg_vec.len() > self.n_passive_scalars {
+            self.s_cfg_vec.pop();
         }
         // for (i, _) in self.ps_cfg_vec.iter_mut().enumerate() {
         //     ui.collapsing(format!("Passive scalar {}", i), |ui| {
@@ -466,12 +476,12 @@ impl GuiApp {
         //         ui.label("It's a passive scalar.");
         //     });
         // });
-        for (i, ps_cfg) in self.ps_cfg_vec.iter_mut().enumerate() {
+        for (i, ps_cfg) in self.s_cfg_vec.iter_mut().enumerate() {
             let id = egui::Id::new(format!("ps_window_open_{}", i));
             let mut open = ui.memory(|mem| mem.data.get_temp::<bool>(id).unwrap_or(false));
             ui.horizontal(|ui| {
                 ui.label(format!("Scalar {}:", i));
-                ui.text_edit_singleline(&mut ps_cfg.scalar_name);
+                ui.text_edit_singleline(&mut ps_cfg.name);
                 if ui.button(if open { "Close" } else { "Open" }).clicked() {
                     open = !open;
                 }
@@ -479,15 +489,15 @@ impl GuiApp {
             // ui.add_space(5.0);
             if open {
                 let ctx = ui.ctx();
-                egui::Window::new(format!("Scalar {}: {}", i, ps_cfg.scalar_name))
+                egui::Window::new(format!("Scalar {}: {}", i, ps_cfg.name))
                     .id(egui::Id::new(format!("ps_window_{}", i)))
                     .open(&mut open)
                     .show(ctx, |ui| {
                         ps_cfg.ui_scalar_name(ui);
                         ui.separator();
-                        ps_cfg.ui_initial_scalar_value(ui);
-                        ui.separator();
                         ps_cfg.ui_lattice_parameters(ui, dim);
+                        ui.separator();
+                        ps_cfg.ui_initial_scalar_value(ui);
                         ui.separator();
                         ps_cfg.ui_boundary_conditions(ui, dim);
                         ui.add_space(10.0);
@@ -529,51 +539,41 @@ impl GuiApp {
 }
 
 impl GuiApp {
-    fn get_ps_params_vec_content(&self) -> String {
-        let mut ps_params_contents = vec![];
-        for ps_cfg in &self.ps_cfg_vec {
-            let ps_params_content = ps_cfg.get_ps_params_content();
-            ps_params_contents.push(ps_params_content);
+    fn get_s_params_vec_content(&self) -> String {
+        let mut s_params_contents = vec![];
+        for s_cfg in &self.s_cfg_vec {
+            let s_params_content = s_cfg.get_s_params_content();
+            s_params_contents.push(s_params_content);
         }
-        ps_params_contents.join("\n")
+        s_params_contents.join("\n")
     }
 
-    fn get_ps_solve_content(&self) -> String {
-        match self.n_passive_scalars {
-            0 => "".to_string(),
-            1 => {
-                let ps_cfg = &self.ps_cfg_vec[0];
-                let ps_params_literal = ps_cfg.get_ps_params_literal();
-                format!("    // ps::solve(m_params, {});", ps_params_literal)
-            }
-            _ => {
-                let ps_params_vec_literal = self
-                    .ps_cfg_vec
-                    .iter()
-                    .map(|ps_cfg| ps_cfg.get_ps_params_literal())
-                    .collect::<Vec<String>>()
-                    .join(", ");
-                format!(
-                    "    // ps::solve_vec(m_params, vec![{}]);",
-                    ps_params_vec_literal
-                )
-            }
-        }
+    fn get_solve_content(&self) -> String {
+        let s_params_vec_literal = self
+            .s_cfg_vec
+            .iter()
+            .map(|ps_cfg| ps_cfg.get_s_params_name_literal())
+            .collect::<Vec<String>>()
+            .join(", ");
+        format!(
+            "    solve(domain, m_params, vec![{}], vec![]);",
+            s_params_vec_literal
+        )
     }
 
     fn get_main_rs_content(&self) -> String {
-        let m_params_content = self.m_cfg.get_m_params_content();
-        let ps_params_vec_content = self.get_ps_params_vec_content();
-        let ps_params_solve_content = self.get_ps_solve_content();
+        let domain_content = self.d_cfg.get_domain_content();
+        let m_params_content = self.m_cfg.get_m_params_content(&self.d_cfg.dim);
+        let s_params_vec_content = self.get_s_params_vec_content();
+        let solve_content = self.get_solve_content();
         format!(
-            r#"use lbflow::prelude::*;
+            r#"use lbflow_soa::prelude::*;
 
 fn main() {{
+{domain_content}
 {m_params_content}
-{ps_params_vec_content}
-
-    m::solve(m_params);
-{ps_params_solve_content}
+{s_params_vec_content}
+{solve_content}
 }}
 "#
         )
@@ -588,6 +588,9 @@ impl eframe::App for GuiApp {
                 ui.separator();
 
                 self.ui_domain(ui);
+                ui.separator();
+
+                self.ui_physical_properties(ui);
                 ui.separator();
 
                 self.ui_m_lattice_parameters(ui);
