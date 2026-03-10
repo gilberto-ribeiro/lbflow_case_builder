@@ -428,10 +428,18 @@ impl GuiApp {
         });
     }
 
-    fn ui_commit_hash(&mut self, ui: &mut egui::Ui) {
+    fn ui_source_code_path(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             ui.label("Source code path:");
             ui.text_edit_singleline(&mut self.c_cfg.source_code_path);
+        });
+    }
+
+    fn ui_par_mode(&mut self, ui: &mut egui::Ui) {
+        ui.horizontal(|ui| {
+            ui.label("Rust parallelization mode:");
+            ui.selectable_value(&mut self.c_cfg.par_mode, ParModeGui::Safe, "Safe");
+            ui.selectable_value(&mut self.c_cfg.par_mode, ParModeGui::Unsafe, "Unsafe");
         });
     }
 
@@ -448,7 +456,9 @@ impl GuiApp {
         ui.add_space(10.0);
         self.ui_parent_dir(ui);
         ui.add_space(10.0);
-        self.ui_commit_hash(ui);
+        self.ui_source_code_path(ui);
+        ui.add_space(10.0);
+        self.ui_par_mode(ui);
     }
 
     fn ui_scalars(&mut self, ui: &mut egui::Ui) {

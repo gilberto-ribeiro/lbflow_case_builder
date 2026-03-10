@@ -152,9 +152,16 @@ pub(crate) enum NodeTypeMaskGui {
     OnlyFluidNodes,
 }
 
+#[derive(PartialEq, Eq)]
+pub(crate) enum ParModeGui {
+    Safe,
+    Unsafe,
+}
+
 pub(crate) struct CargoGuiConfig {
     pub(crate) case_name: String,
     pub(crate) source_code_path: String,
+    pub(crate) par_mode: ParModeGui,
 }
 
 impl Default for CargoGuiConfig {
@@ -162,6 +169,7 @@ impl Default for CargoGuiConfig {
         CargoGuiConfig {
             case_name: "case_000_00".to_string(),
             source_code_path: String::from("../../../lbflow_soa"),
+            par_mode: ParModeGui::Safe,
         }
     }
 }
@@ -170,12 +178,20 @@ impl CargoGuiConfig {
     fn get_source_code_path_literal(&self) -> String {
         format!("\"{}\"", self.source_code_path)
     }
+
+    fn get_par_mode_literal(&self) -> String {
+        match self.par_mode {
+            ParModeGui::Safe => String::new(),
+            ParModeGui::Unsafe => String::from("\"unsafe_fastpath\""),
+        }
+    }
 }
 
 impl CargoGuiConfig {
     pub fn get_cargo_toml(&self) -> String {
         let case_name = &self.case_name;
-        let commit_hash_literal = self.get_source_code_path_literal();
+        let source_code_path_literal = self.get_source_code_path_literal();
+        let par_mode_literal = self.get_par_mode_literal();
         format!(
             r#"[package]
 name = "{case_name}"
@@ -183,7 +199,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-lbflow_soa = {{ version = "0.1.0", path = {commit_hash_literal} }}
+lbflow_soa = {{ version = "0.1.0", path = {source_code_path_literal}, features = [{par_mode_literal}] }}
 "#
         )
     }
