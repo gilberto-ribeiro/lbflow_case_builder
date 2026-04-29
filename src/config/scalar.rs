@@ -192,7 +192,7 @@ impl GuiConfig {
             };
             let cur_file_path = match &self.initial_scalar_value {
                 InitialScalarValueGui::FromFile { file_path } => file_path.clone(),
-                _ => format!("./pre_processing/{}.csv", self.name),
+                _ => format!("./pre_processing/{}/master.pvti", self.name),
             };
 
             egui::ComboBox::from_id_salt("initial_scalar_value_combo_box")

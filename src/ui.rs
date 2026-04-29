@@ -144,7 +144,7 @@ impl GuiApp {
             };
             let cur_file_path = match &self.m_cfg.initial_density {
                 momentum::InitialDensityGui::FromFile { file_path } => file_path.clone(),
-                _ => "./pre_processing/density.csv".to_string(),
+                _ => "./pre_processing/momentum/master.pvti".to_string(),
             };
 
             egui::ComboBox::from_id_salt("initial_density_combo_box")
@@ -208,7 +208,7 @@ impl GuiApp {
             };
             let cur_vel_file_path = match &self.m_cfg.initial_velocity {
                 momentum::InitialVelocityGui::FromFile { file_path } => file_path.clone(),
-                _ => "./pre_processing/velocity.csv".to_string(),
+                _ => "./pre_processing/momentum/master.pvti".to_string(),
             };
             egui::ComboBox::from_id_salt("initial_velocity_combo_box")
                 .selected_text(match &self.m_cfg.initial_velocity {
